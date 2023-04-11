@@ -28,7 +28,8 @@ class ConvBNLayer(nn.Module):
                  kernel_size=3, 
                  stride=1, 
                  padding=0, 
-                 bias=False):
+                 bias=False,
+                 act=nn.GELU):
         super(ConvBNLayer, self).__init__()
 
         self.conv2d = nn.Conv2d(
@@ -39,7 +40,7 @@ class ConvBNLayer(nn.Module):
             padding=padding,
             bias=bias)
         self.bn = nn.BatchNorm2d(out_channel)
-        self.act = nn.GELU()
+        self.act = act()
 
     def forward(self, inputs):
         out = self.conv2d(inputs)
