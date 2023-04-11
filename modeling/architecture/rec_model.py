@@ -1,0 +1,63 @@
+'''
+Author: Cristiano-3 chunanluo@126.com
+Date: 2023-04-11 17:15:33
+LastEditors: Cristiano-3 chunanluo@126.com
+LastEditTime: 2023-04-11 18:31:10
+FilePath: /SVTR/modeling/architecture/rec_model.py
+Description: 
+'''
+# coding: utf-8
+from torch import nn
+from modeling.neck.rnn import SequenceEncoder, Im2Seq, Im2Im
+from modeling.backbone.svtr import SVTRNet
+from modeling.head.ctc_head import CTC, MultiHead
+
+backbone_dict = {'SVTR':SVTRNet}
+neck_dict = {'RNN':SequenceEncoder, 'Im2Seq':Im2Seq, 'None':Im2Im}
+head_dict = {'CTC':CTC, 'Multi':MultiHead}
+
+
+class RecModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        assert 'in_channel' in config, 'in_channel must in model config'
+
+        backbone_type = config.backbone.pop('type')
+        assert backbone_type in backbone_dict, f'backbone type must in {backbone_dict.keys()}'
+        self.backbone = backbone_dict[backbone_type](config.in_channel, **config.backbone)
+        
+        neck_type = config.neck.pop('type')
+        assert neck_type in neck_dict, f'neck type must in {neck_dict.keys()}'
+        self.neck = neck_dict[neck_type](self.backbone.out_channel, **config.neck)
+
+        head_type = config.head.pop('type')
+        assert head_type in head_dict, f'head type must in {head_dict.keys()}'
+        self.head = head_dict[head_type](self.neck.out_channel, **config.head)
+
+        self.name = f'RecModel_{backbone_type}_{neck_type}_{head_type}'
+
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.neck(x)
+        x = self.head(x)
+        return x
+
+
+if __name__ == '__main__':
+    from addict import Dict as AttrDict
+
+    config = AttrDict(
+        in_channel=3,
+        backbone=AttrDict(type='SVTR', scale=0.5, last_conv_stride=[1, 2], last_pool_type='avg'),
+        neck=AttrDict(type='None'),
+        head=AttrDict(
+            type='Multi', 
+            head_list=AttrDict(
+                CTC=AttrDict(Neck=AttrDict(name="svtr", dims=64, depth=2, hidden_dims=120, use_guide=True)),
+            # SARHead=AttrDict(enc_dim=512,max_text_length=70)
+            ),
+            n_class=6625)
+    )
+    model = RecModel(config)
+    print(model)
+    
