@@ -642,3 +642,6 @@ if __name__ == "__main__":
     print(20*'-')
     print(out.size())
     
+    from torchsummary import summary
+    summary(svtr, input_size=(3, 48, 100), batch_size=1)
+    
