@@ -27,7 +27,8 @@ class ConvBNLayer(nn.Module):
                  out_channel, 
                  kernel_size=3, 
                  stride=1, 
-                 padding=0, 
+                 padding=0,
+                 groups=1, 
                  bias=False,
                  act=nn.GELU):
         super(ConvBNLayer, self).__init__()
@@ -38,6 +39,7 @@ class ConvBNLayer(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             padding=padding,
+            groups=groups,
             bias=bias)
         self.bn = nn.BatchNorm2d(out_channel)
         self.act = act()
