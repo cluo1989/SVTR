@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-11 17:15:33
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-11 18:31:10
+LastEditTime: 2023-04-13 18:38:06
 FilePath: /SVTR/modeling/architecture/rec_model.py
 Description: 
 '''
@@ -10,9 +10,10 @@ Description:
 from torch import nn
 from modeling.neck.rnn import SequenceEncoder, Im2Seq, Im2Im
 from modeling.backbone.svtr import SVTRNet
+from modeling.backbone.mobilenet import MobileNetV1Enhance
 from modeling.head.ctc_head import CTC, MultiHead
 
-backbone_dict = {'SVTR':SVTRNet}
+backbone_dict = {'SVTRNet':SVTRNet, 'MobileNetV1Enhance':MobileNetV1Enhance}
 neck_dict = {'RNN':SequenceEncoder, 'Im2Seq':Im2Seq, 'None':Im2Im}
 head_dict = {'CTC':CTC, 'Multi':MultiHead}
 
@@ -48,16 +49,20 @@ if __name__ == '__main__':
 
     config = AttrDict(
         in_channel=3,
-        backbone=AttrDict(type='SVTR', scale=0.5, last_conv_stride=[1, 2], last_pool_type='avg'),
+        backbone=AttrDict(type='MobileNetV1Enhance', scale=0.5, last_conv_stride=[1, 2], last_pool_type='avg'),
         neck=AttrDict(type='None'),
         head=AttrDict(
             type='Multi', 
             head_list=AttrDict(
                 CTC=AttrDict(Neck=AttrDict(name="svtr", dims=64, depth=2, hidden_dims=120, use_guide=True)),
-            # SARHead=AttrDict(enc_dim=512,max_text_length=70)
+                SARHead=AttrDict(enc_dim=512,max_text_length=70)
             ),
             n_class=6625)
     )
     model = RecModel(config)
     print(model)
+    
+    from torchsummary import summary
+    model.eval()
+    summary(model, input_size=(3, 32, 224), batch_size=1)
     
