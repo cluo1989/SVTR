@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-03-28 17:56:37
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-11 17:35:02
+LastEditTime: 2023-04-13 18:33:35
 FilePath: /SVTR/modeling/backbone/ctc_head.py
 Description: 
 '''
@@ -11,6 +11,7 @@ from torch import nn
 from addict import Dict as AttrDict
 
 from modeling.neck.rnn import Im2Seq, SequenceEncoder
+from modeling.head.sar_head import SARHead
 
 
 class CTC(nn.Module):
@@ -49,7 +50,7 @@ class MultiHead(nn.Module):
                 sar_args = self.head_list[name]
                 self.sar_head = eval(name)(in_channel=in_channel, out_channel=self.out_c, **sar_args)
                 
-            if name == 'CTC':
+            elif name == 'CTC':
                 self.encoder_reshape = Im2Seq(in_channel)
                 
                 head_args = self.head_list[name]
