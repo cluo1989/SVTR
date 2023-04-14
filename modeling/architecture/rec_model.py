@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-11 17:15:33
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-13 18:38:06
+LastEditTime: 2023-04-14 10:02:08
 FilePath: /SVTR/modeling/architecture/rec_model.py
 Description: 
 '''
@@ -49,7 +49,8 @@ if __name__ == '__main__':
 
     config = AttrDict(
         in_channel=3,
-        backbone=AttrDict(type='MobileNetV1Enhance', scale=0.5, last_conv_stride=[1, 2], last_pool_type='avg'),
+        # backbone=AttrDict(type='MobileNetV1Enhance', scale=0.5, last_conv_stride=[1, 2], last_pool_type='avg'),
+        backbone=AttrDict(type='SVTRNet', image_size=[32, 224]),
         neck=AttrDict(type='None'),
         head=AttrDict(
             type='Multi', 

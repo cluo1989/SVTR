@@ -410,8 +410,8 @@ class SubSample(nn.Module):
 
 class SVTRNet(nn.Module):
     def __init__(self, 
-        image_size=[48, 100],
         in_channel=3,
+        image_size=[48, 100],        
         embed_dim=[64, 128, 256],
         depth=[3, 6, 3],
         num_heads=[2, 4, 8],
