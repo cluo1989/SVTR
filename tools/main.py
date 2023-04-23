@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-03-20 14:24:05
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-21 14:12:35
+LastEditTime: 2023-04-23 14:26:12
 FilePath: /SVTR/tools/train.py
 Description: 
 '''
@@ -29,7 +29,7 @@ from utils import AverageMeter, ProgressMeter, Summary
 from modeling.metrics.rec_metric import accuracy
 
 
-def train(train_loader, model, criterion, optimizer, epoch, device, config):
+def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, config):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -43,6 +43,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device, config):
     
     # train mode
     model.train()
+    num_batches = len(train_loader)
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
@@ -74,7 +75,19 @@ def train(train_loader, model, criterion, optimizer, epoch, device, config):
         if i % config.PRINT_FREQ == 0:
             progress.display(i + 1)
 
-    return
+        # save checkpoint
+        step = epoch * num_batches + i + 1
+        if step % config.SAVE_STEP_INTER == 0:
+            save_file = os.path.join(config.OUTPUT_DIR, f"checkpoint_{epoch}_{i}_{loss}_{acc}.pth")
+            torch.save({
+                'epoch': epoch,
+                'step': step,
+                'best_acc': acc,
+                'loss': loss,
+                'state_dict': model.module.state_dict(),
+                'optimizer': optimizer.state_dict(),                
+                'scheduler': scheduler.state_dict()
+            }, save_file)
 
 def validate(val_loader, model, criterion, device, config):
 
@@ -121,6 +134,7 @@ def validate(val_loader, model, criterion, device, config):
 def parse_args():
     parser = argparse.ArgumentParser(description='Train SVTR Text Recognition Model.')
     parser.add_argument('-c', '--cfg', help='configuration file name.', required=True, type=str)
+    parser.add_argument("--local_rank", help="local device id on current node", type=int)
     # parser.add_argument('--freq', help='frequency of logging.', default=10, type=int)
     # parser.add_argument('--gpu', help='gpus', type=str)
     # parser.add_argument('--worker', help='num of dataloader workers', type=int)
@@ -154,36 +168,50 @@ def main():
         cudnn.deterministic = False # deterministic operations
         cudnn.enabled = True
 
-    dist.init_process_group(backend=dist.Backend.NCCL)
-
     # training device
     if torch.cuda.is_available():
-        local_rank = torch.distributed.get_rank()
-        torch.cuda.set_device(local_rank)
-        device = torch.device("cuda", local_rank)
+        n_gpus = 1
+        dist.init_process_group(backend=dist.Backend.NCCL, world_size=n_gpus, rank=args.local_rank)
+
+        # local_rank = torch.distributed.get_rank()
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)  # f'cuda:{args.local_rank}'
 
     elif torch.backends.mps.is_available():
-        # (GPU for MacOS devices with Metal programming framework)
-        device = torch.device("mps")    
+        # GPU for MacOS devices
+        device = torch.device("mps")
     else:
         device = torch.device("cpu")
     
-    criterion = Loss
-    optimizer = Optimizer
-    scheduler = Scheduler
-
     # create & load model
-    model = RecModel(config)    
-    # resume from a checkpoint
-    resume_file = config.TRAIN.RESUME.FILE
+    model = RecModel(config)
+    criterion = Loss
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()), 
+        lr=1e-4)
+
+    # lr_scheduler ref: https://zhuanlan.zhihu.com/p/352744991
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        config.TRAIN.LR_STEP,
+        config.TRAIN.LR_FACTOR,
+        last_epoch=config.TRAIN.START_EPOCH - 1  # START_EPOCH = 0,1,2...
+    )
+    
+
+    # resume
+    best_acc = 0.0
+    resume_file = config.TRAIN.RESUME
     if resume_file:
         if os.path.isfile(resume_file):
             print(f"loading checkpoint {resume_file}")
             if torch.cuda.is_available():
-                checkpoint = torch.load(resume_file, map_location=f'cuda:{local_rank}')
+                checkpoint = torch.load(resume_file, map_location=device)
             else:
                 checkpoint = torch.load(resume_file)
-            config.START_EPOCH = checkpoint['epoch']
+                
+            # parse & load from checkpoint
+            config.TRAIN.START_EPOCH = checkpoint['epoch']
             best_acc = checkpoint['best_acc']
             if torch.cuda.is_available():
                 best_acc.to(device)
@@ -196,11 +224,11 @@ def main():
         else:
             print(f"=> no checkpoint found at {resume_file}")
 
-    # model.to(device)
+    model.to(device)
     model = DistributedDataParallel(
             model, 
-            device_ids=[local_rank], 
-            output_device=local_rank
+            device_ids=[args.local_rank], 
+            output_device=args.local_rank
             )
 
     # data loading
@@ -225,10 +253,23 @@ def main():
     )
 
     # train
-    for epoch in range(config.START_EPOCH, config.EPOCHS):
+    for epoch in range(config.TRAIN.START_EPOCH, config.TRAIN.EPOCHS):
         trainsampler.set_epoch(epoch)
-        train(trainloader, model, criterion, optimizer, epoch, device, config)
-        validate(valloader, model, criterion, config)
+        train(trainloader, model, criterion, optimizer, scheduler, epoch, device, config)
+        acc = validate(valloader, model, criterion, config)
+        scheduler.step()
+
+        is_best = acc > best_acc
+        best_acc = max(acc, best_acc)
+        if is_best:
+            save_file = os.path.join(config.OUTPUT_DIR, f'model_best_{epoch}_{best_acc}.pth')
+            torch.save({
+                'epoch': epoch, 
+                'best_acc': best_acc,
+                'state_dict': model.module.state_dict(),
+                'optimizer': optimizer.state_dict(), 
+                'scheduler': scheduler.state_dict()
+            },save_file)
 
 if __name__ == '__main__':
     main()
