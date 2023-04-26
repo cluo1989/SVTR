@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-11 17:15:33
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-14 10:02:08
+LastEditTime: 2023-04-24 16:06:31
 FilePath: /SVTR/modeling/architecture/rec_model.py
 Description: 
 '''
@@ -23,17 +23,17 @@ class RecModel(nn.Module):
         super().__init__()
         assert 'in_channel' in config, 'in_channel must in model config'
 
-        backbone_type = config.backbone.pop('type')
+        backbone_type = config.BACKBONE.pop('name')
         assert backbone_type in backbone_dict, f'backbone type must in {backbone_dict.keys()}'
-        self.backbone = backbone_dict[backbone_type](config.in_channel, **config.backbone)
+        self.backbone = backbone_dict[backbone_type](config.in_channel, **config.BACKBONE)
         
-        neck_type = config.neck.pop('type')
+        neck_type = config.NECK.pop('name')
         assert neck_type in neck_dict, f'neck type must in {neck_dict.keys()}'
-        self.neck = neck_dict[neck_type](self.backbone.out_channel, **config.neck)
+        self.neck = neck_dict[neck_type](self.backbone.out_channel, **config.NECK)
 
-        head_type = config.head.pop('type')
+        head_type = config.HEAD.pop('name')
         assert head_type in head_dict, f'head type must in {head_dict.keys()}'
-        self.head = head_dict[head_type](self.neck.out_channel, **config.head)
+        self.head = head_dict[head_type](self.neck.out_channel, **config.HEAD)
 
         self.name = f'RecModel_{backbone_type}_{neck_type}_{head_type}'
 

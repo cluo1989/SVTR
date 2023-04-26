@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-11 18:42:50
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-12 14:09:47
+LastEditTime: 2023-04-25 16:28:31
 FilePath: /SVTR/modeling/backbone/mobilenet.py
 Description: 
 '''
@@ -117,7 +117,7 @@ class MobileNetV1Enhance(nn.Module):
         self.block_list = []
         
         self.conv1 = ConvBNLayer(
-            in_channel=3,
+            in_channel=in_channel,
             kernel_size=3,
             out_channel=int(32 * scale),
             stride=2,
@@ -241,6 +241,7 @@ class MobileNetV1Enhance(nn.Module):
         self.out_channel = int(1024*scale)
 
     def forward(self, inputs):
+        print(30*'-', inputs.shape)
         y = self.conv1(inputs)
         y = self.block_list(y)
         y = self.pool(y)

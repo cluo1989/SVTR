@@ -1,23 +1,53 @@
-GPUS: (0, )
-OUTPUT_DIR: outputs
-LOG_DIR: logs
-WORKERS: 4
-PRINT_FREQ: 10
-LOG_CONFIG: logging.conf
 SEED: 2023
+START_EPOCH: 0
+EPOCHS: 10
+LR_STEP: 1000
+LR_FACTOR: 0.1
+RESUME: null
+BATCH_SIZE_PER_GPU: 2
+WORKERS: 4
+PIN_MEM: True
+
+LOG_DIR: logs
+LOG_CONFIG: logging.conf
+PRINT_FREQ: 10
+OUTPUT_DIR: './outputs'
+
 
 CUDNN:
-  BENCHMARK: true
-  DETERMINISTIC: false
-  ENABLED: true
+  BENCHMARK: True
+  DETERMINISTIC: False
+  ENABLED: True
 
 DATASETS:
-  NUM_CLASSES: 8525
+  train:
+    label_file: '/home/cluo/Workspace/Projects/general_ocr/datasets/rec/datas/test_real.txt'
+    image_dir: '/media/cluo/0000B445000DC2201/t1/第一批/image_cut_for_labeling/'
+  val:
+    label_file: '/home/cluo/Workspace/Projects/general_ocr/datasets/rec/datas/val_real.txt'
+    image_dir: '/media/cluo/0000B445000DC2201/t1/第一批/image_cut_for_labeling/'
+  test:
+    label_file: ''
+    image_dir: ''
 
 MODEL:
-  NAME: svtr
-  IN_CHANNEL: 3
+  name: svtr
+  in_channel: 1
 
+  BACKBONE:
+    name: MobileNetV1Enhance
+    scale: 0.5
+
+  NECK:
+    name: RNN
+
+  HEAD:
+    name: CTC
+    n_class: 8535
+
+LOSS:
+  name: CTCLoss
+  
 TRAIN:
 
 TEST:

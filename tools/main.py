@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-03-20 14:24:05
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-23 14:26:12
+LastEditTime: 2023-04-25 17:59:04
 FilePath: /SVTR/tools/train.py
 Description: 
 '''
@@ -24,9 +24,10 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel
 
 from modeling.architecture.rec_model import RecModel
+from modeling.loss.rec_ctc_loss import CTCLoss
 from datasets.rec_dataset import RecDataset
 from utils import AverageMeter, ProgressMeter, Summary
-from modeling.metrics.rec_metric import accuracy
+from modeling.metrics.rec_metric import RecMetric
 
 
 def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, config):
@@ -46,20 +47,22 @@ def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, c
     num_batches = len(train_loader)
 
     end = time.time()
-    for i, (images, target) in enumerate(train_loader):
+    for i, (images, labels, label_lengths) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
         # move data to the same device as model
         images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
+        label_lengths = label_lengths.to(device, non_blocking=True)
 
         # compute output
         output = model(images)
-        loss = criterion(output, target)
+        print(20*'+', output.shape, labels.shape, label_lengths.shape)
+        loss = criterion(output, labels, label_lengths)
 
         # measure acc and record loss
-        acc = accuracy(output, target)
+        acc = accuracy(output, labels)
         losses.update(loss.item(), images.size(0))
         accs.update(acc, images.size(0))
 
@@ -157,16 +160,19 @@ def main():
         # torch.cuda.manual_seed(config.SEED)
         # torch.cuda.manual_seed_all(config.SEED)
 
-        cudnn.benchmark = False
-        cudnn.deterministic = True
-        cudnn.enabled = False
+        cudnn.benchmark = config.CUDNN.BENCHMARK
+        cudnn.deterministic = config.CUDNN.DETERMINISTIC
+        cudnn.enabled = config.CUDNN.ENABLED
+        # cudnn.benchmark = False
+        # cudnn.deterministic = True
+        # cudnn.enabled = False
     else:
-        # cudnn.benchmark = config.CUDNN.BENCHMARK
-        # cudnn.deterministic = config.CUDNN.DETERMINISTIC
-        # cudnn.enabled = config.CUDNN.ENABLED
-        cudnn.benchmark = True      # benchmark: find best conv alg
-        cudnn.deterministic = False # deterministic operations
-        cudnn.enabled = True
+        cudnn.benchmark = config.CUDNN.BENCHMARK
+        cudnn.deterministic = config.CUDNN.DETERMINISTIC
+        cudnn.enabled = config.CUDNN.ENABLED
+        # cudnn.benchmark = True      # benchmark: find best conv alg
+        # cudnn.deterministic = False # deterministic operations
+        # cudnn.enabled = True
 
     # training device
     if torch.cuda.is_available():
@@ -181,11 +187,12 @@ def main():
         # GPU for MacOS devices
         device = torch.device("mps")
     else:
+        dist.init_process_group(backend=dist.Backend.GLOO, world_size=1, rank=args.local_rank)
         device = torch.device("cpu")
     
     # create & load model
-    model = RecModel(config)
-    criterion = Loss
+    model = RecModel(config['MODEL'])
+    criterion = CTCLoss().to(device)
     optimizer = torch.optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()), 
         lr=1e-4)
@@ -193,15 +200,15 @@ def main():
     # lr_scheduler ref: https://zhuanlan.zhihu.com/p/352744991
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer,
-        config.TRAIN.LR_STEP,
-        config.TRAIN.LR_FACTOR,
-        last_epoch=config.TRAIN.START_EPOCH - 1  # START_EPOCH = 0,1,2...
+        config.LR_STEP,
+        config.LR_FACTOR,
+        last_epoch=config.START_EPOCH - 1  # START_EPOCH = 0,1,2...
     )
     
 
     # resume
     best_acc = 0.0
-    resume_file = config.TRAIN.RESUME
+    resume_file = config.RESUME
     if resume_file:
         if os.path.isfile(resume_file):
             print(f"loading checkpoint {resume_file}")
@@ -211,7 +218,7 @@ def main():
                 checkpoint = torch.load(resume_file)
                 
             # parse & load from checkpoint
-            config.TRAIN.START_EPOCH = checkpoint['epoch']
+            config.START_EPOCH = checkpoint['epoch']
             best_acc = checkpoint['best_acc']
             if torch.cuda.is_available():
                 best_acc.to(device)
@@ -227,33 +234,33 @@ def main():
     model.to(device)
     model = DistributedDataParallel(
             model, 
-            device_ids=[args.local_rank], 
-            output_device=args.local_rank
+            # device_ids=[args.local_rank], 
+            # output_device=args.local_rank
             )
 
     # data loading
-    trainset = RecDataset("", "")
+    trainset = RecDataset(config.DATASETS.train.label_file, config.DATASETS.train.image_dir)
     trainsampler = DistributedSampler(trainset)
     trainloader = DataLoader(
         dataset=trainset, 
-        batch_size=config.TRAIN.BATCH_SIZE_PER_GPU,
+        batch_size=config.BATCH_SIZE_PER_GPU,
         num_workers=config.WORKERS,
         sampler=trainsampler,
         pin_memory=config.PIN_MEM
         )
 
-    valset = RecDataset("", "")
+    valset = RecDataset(config.DATASETS.val.label_file, config.DATASETS.val.image_dir)
     valsampler = DistributedSampler(valset)
     valloader = DataLoader(
         dataset=valset,
-        batch_size=config.VALIDATE.BATCH_SIZE_PER_GPU,
+        batch_size=config.BATCH_SIZE_PER_GPU,
         num_workers=config.WORKERS,
         sampler=valsampler,
         pin_memory=config.PIN_MEM
     )
 
     # train
-    for epoch in range(config.TRAIN.START_EPOCH, config.TRAIN.EPOCHS):
+    for epoch in range(config.START_EPOCH, config.EPOCHS):
         trainsampler.set_epoch(epoch)
         train(trainloader, model, criterion, optimizer, scheduler, epoch, device, config)
         acc = validate(valloader, model, criterion, config)
