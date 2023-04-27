@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-03-20 14:24:05
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-25 17:59:04
+LastEditTime: 2023-04-27 10:58:02
 FilePath: /SVTR/tools/train.py
 Description: 
 '''
@@ -28,7 +28,7 @@ from modeling.loss.rec_ctc_loss import CTCLoss
 from datasets.rec_dataset import RecDataset
 from utils import AverageMeter, ProgressMeter, Summary
 from modeling.metrics.rec_metric import RecMetric
-
+accuracy = RecMetric()
 
 def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, config):
     batch_time = AverageMeter('Time', ':6.3f')
@@ -38,7 +38,7 @@ def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, c
     
     progress = ProgressMeter(
         len(train_loader), 
-        [batch_time, data_time, losses], 
+        [batch_time, data_time, losses, accs], 
         prefix='Epoch: [{}]'.format(epoch)
         )
     
@@ -58,11 +58,11 @@ def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, c
 
         # compute output
         output = model(images)
-        print(20*'+', output.shape, labels.shape, label_lengths.shape)
+        # print(20*'+', output.shape, labels.shape, label_lengths.shape)
         loss = criterion(output, labels, label_lengths)
 
         # measure acc and record loss
-        acc = accuracy(output, labels)
+        acc = accuracy(output, labels)['acc']
         losses.update(loss.item(), images.size(0))
         accs.update(acc, images.size(0))
 
@@ -81,7 +81,13 @@ def train(train_loader, model, criterion, optimizer, scheduler, epoch, device, c
         # save checkpoint
         step = epoch * num_batches + i + 1
         if step % config.SAVE_STEP_INTER == 0:
-            save_file = os.path.join(config.OUTPUT_DIR, f"checkpoint_{epoch}_{i}_{loss}_{acc}.pth")
+            save_file = os.path.join(
+                config.OUTPUT_DIR, ''.join([
+                f"checkpoint_{epoch}_{i}",
+                f"_{round(loss.item(), 4)}",
+                f"_{round(acc, 4)}.pth"])
+                )
+
             torch.save({
                 'epoch': epoch,
                 'step': step,
@@ -99,7 +105,7 @@ def validate(val_loader, model, criterion, device, config):
     accs = AverageMeter('Acc', ':6.2f', Summary.AVERAGE)
     
     progress = ProgressMeter(
-        len(val_loader) + (config.distributed and (len(val_loader.sampler) * config.world_size < len(val_loader.dataset))),
+        len(val_loader),
         [batch_time, losses, accs],
         prefix='Test: ')
 
@@ -108,17 +114,18 @@ def validate(val_loader, model, criterion, device, config):
     def run_validate(loader, base_progress=0):
         with torch.no_grad():
             end = time.time()
-            for i, (images, target) in enumerate(loader):
+            for i, (images, labels, label_lengths) in enumerate(loader):
                 i = base_progress + i                    
-                images = images.to(device)
-                target = target.to(device)
+                images = images.to(device, non_blocking=True)
+                labels = labels.to(device, non_blocking=True)
+                label_lengths = label_lengths.to(device, non_blocking=True)
 
                 # compute output
                 output = model(images)
-                loss = criterion(output, target)
+                loss = criterion(output, labels, label_lengths)
                 
                 # measure acc and record loss
-                acc = accuracy(output, target)
+                acc = accuracy(output, labels)['acc']
                 losses.update(loss.item(), images.size(0))
                 accs.update(acc, images.size(0))
 
@@ -263,7 +270,7 @@ def main():
     for epoch in range(config.START_EPOCH, config.EPOCHS):
         trainsampler.set_epoch(epoch)
         train(trainloader, model, criterion, optimizer, scheduler, epoch, device, config)
-        acc = validate(valloader, model, criterion, config)
+        acc = validate(valloader, model, criterion, device, config)
         scheduler.step()
 
         is_best = acc > best_acc
@@ -276,7 +283,7 @@ def main():
                 'state_dict': model.module.state_dict(),
                 'optimizer': optimizer.state_dict(), 
                 'scheduler': scheduler.state_dict()
-            },save_file)
+            }, save_file)
 
 if __name__ == '__main__':
     main()

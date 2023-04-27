@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-23 14:24:00
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-25 16:53:27
+LastEditTime: 2023-04-26 15:32:13
 FilePath: /SVTR/modeling/loss/rec_ctc_loss.py
 Description: 
 '''
@@ -28,11 +28,11 @@ class CTCLoss(nn.Module):
         # input lengths
         batch_size = logits.shape[1]
         time_steps = logits.shape[0]
-        print(f'batch size:{batch_size}, steps:{time_steps}')
+        # print(f'batch size:{batch_size}, steps:{time_steps}')
         
         # pred_lengths = torch.LongTensor([time_steps] * batch_size)
         pred_lengths = torch.full((batch_size,), time_steps)
-        print(logits.shape, labels.shape, label_lengths.shape, pred_lengths.shape)
+        # print(logits.shape, labels.shape, label_lengths.shape, pred_lengths.shape)
         loss = self.loss_func(pred_probs, labels, pred_lengths, label_lengths)
 
         # focal loss

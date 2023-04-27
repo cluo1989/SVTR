@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-17 10:47:24
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-25 16:47:19
+LastEditTime: 2023-04-26 16:52:36
 FilePath: /SVTR/datasets/mydataset.py
 Description: 
 '''
@@ -22,7 +22,7 @@ class RecDataset(data.Dataset):
         self.max_label_len = 25
         self.split_mark = '    '
         self.old_image_dir = '/home/datasets/'
-        self.samples = self.load_labels(label_file, image_dir)
+        self.samples = self.load_labels(label_file, image_dir)[:100]
 
     def debug_print(self, tip, content, debug=False):
         if debug:
@@ -81,8 +81,8 @@ class RecDataset(data.Dataset):
         image = image.permute([2,0,1])
         
         # pad label
-        label = np.array(label)
-        pad_label = np.zeros(self.max_label_len) #8275*np.ones(self.max_label_len)
+        label = np.array(label, dtype=np.int32)
+        pad_label = np.zeros(self.max_label_len, dtype=np.int32) #8275*np.ones(self.max_label_len)
         pad_label[:len(label)] = label
         
         label_len = len(label)#np.array([])

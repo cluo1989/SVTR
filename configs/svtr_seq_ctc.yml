@@ -10,7 +10,9 @@ PIN_MEM: True
 
 LOG_DIR: logs
 LOG_CONFIG: logging.conf
+
 PRINT_FREQ: 10
+SAVE_STEP_INTER: 10
 OUTPUT_DIR: './outputs'
 
 

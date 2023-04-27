@@ -1,9 +1,16 @@
-# coding: utf-8
-# ref:
-# https://github.com/PaddlePaddle/PaddleOCR/blob/release/2.6/ppocr/metrics/rec_metric.py
+'''
+Author: Cristiano-3 chunanluo@126.com
+Date: 2023-04-18 15:23:15
+LastEditors: Cristiano-3 chunanluo@126.com
+LastEditTime: 2023-04-26 15:41:14
+FilePath: /SVTR/modeling/metrics/rec_metric.py
+Description: ref: https://github.com/PaddlePaddle/PaddleOCR/blob/release/2.6/ppocr/metrics/rec_metric.py
+'''
 from rapidfuzz.distance import Levenshtein
 import torch
 import string
+from modeling.postprocess.rec_postprocess import CTCDecode
+from datasets.label_converter import decode
 
 
 class RecMetric(object):
@@ -16,6 +23,8 @@ class RecMetric(object):
         self.is_filter = is_filter
         self.ignore_space = ignore_space
         self.eps = 1e-5
+        self.pred_decoder = CTCDecode().decode
+        self.label_decoder = decode
         self.reset()
 
     def _normalize_text(self, text):
@@ -23,23 +32,37 @@ class RecMetric(object):
             filter(lambda x: x in (string.digits + string.ascii_letters), text))
         return text.lower()
 
-    def __call__(self, preds, labels, *args, **kwargs):
+    def __call__(self, preds, labels):
+        probs, preds = torch.max(preds, dim=2)
+        # preds.type(torch.int32)
+        # print(preds.shape, labels.shape, preds.dtype, labels.dtype)
+
         with torch.no_grad():
             correct_num = 0
             all_num = 0
             norm_edit_dis = 0.0
-            # for (pred, pred_conf), (target, _) in zip(preds, labels):
-            for (pred, target) in zip(preds, labels):
+            
+            for (pred, prob, target) in zip(preds, probs, labels):
+                # decode
+                pred = self.pred_decoder(pred.detach().numpy(), prob.detach().numpy())
+                target = self.label_decoder(target.detach().numpy())
+                # print(pred, target)
+
                 if self.ignore_space:
                     pred = pred.replace(" ", "")
                     target = target.replace(" ", "")
+
                 if self.is_filter:
                     pred = self._normalize_text(pred)
                     target = self._normalize_text(target)
+
+                # compute edit distance
                 norm_edit_dis += Levenshtein.normalized_distance(pred, target)
                 if pred == target:
                     correct_num += 1
+                
                 all_num += 1
+
             self.correct_num += correct_num
             self.all_num += all_num
             self.norm_edit_dis += norm_edit_dis
