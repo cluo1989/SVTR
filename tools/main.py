@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-03-20 14:24:05
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-27 10:58:02
+LastEditTime: 2023-04-27 19:54:07
 FilePath: /SVTR/tools/train.py
 Description: 
 '''
@@ -202,7 +202,7 @@ def main():
     criterion = CTCLoss().to(device)
     optimizer = torch.optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()), 
-        lr=1e-4)
+        lr=config.LR)
 
     # lr_scheduler ref: https://zhuanlan.zhihu.com/p/352744991
     scheduler = torch.optim.lr_scheduler.StepLR(

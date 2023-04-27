@@ -2,19 +2,22 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-23 14:24:00
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-26 15:32:13
+LastEditTime: 2023-04-27 19:37:11
 FilePath: /SVTR/modeling/loss/rec_ctc_loss.py
 Description: 
 '''
 import torch
 from torch import nn
+from datasets.charset import alphabet
+BLANK_INDEX = len(alphabet)
+print('BLANK:',BLANK_INDEX)
 
 
 class CTCLoss(nn.Module):
     def __init__(self, use_focal_loss=False, **kwargs):
         super(CTCLoss, self).__init__()
         # nn.CTCLoss(blank=len(CHARS)-1, reduction='mean')
-        self.loss_func = nn.CTCLoss(blank=0, reduction='none')
+        self.loss_func = nn.CTCLoss(blank=BLANK_INDEX, reduction='mean')
         self.use_focal_loss = use_focal_loss
 
     def forward(self, logits, labels, label_lengths):
@@ -40,7 +43,7 @@ class CTCLoss(nn.Module):
             weight = torch.square(1 - torch.exp(-loss))
             loss = torch.multiply(loss, weight)
 
-        loss = torch.mean(loss)
+        # loss = torch.mean(loss)
         return loss
 
 

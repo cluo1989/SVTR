@@ -18,5 +18,8 @@ cn_others_variant = '摺後螾郕袴蹻霣饟洟鄳臛蓺唶埶噉曪匳儣轘�
 greek_alphabet = 'αβγδεζηθλμξπρΣσφΦΨΩ'
 others = "\'" + '，。、“”":;‘’.·•,^!?()《》〈〉〔〕[]「」【】_—…/|‖\><≥≤=≈≠-+×±÷%*&#{}@℃√※△□☑☆○◇←↑→↓¥€$∠∧⊥~∴∵▲■★●◆ⓧ①②③④⑤⑥⑦⑧⑨⑩°′″'
 
+# blank
+blank = '－'
+
 # 总字符集
 alphabet = "".join([space, number, en_chars, cn_level1, cn_level2, cn_level3, greek_alphabet, others, cn_others_gb2312, cn_others_variant])

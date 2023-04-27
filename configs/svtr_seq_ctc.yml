@@ -1,18 +1,19 @@
 SEED: 2023
 START_EPOCH: 0
-EPOCHS: 10
-LR_STEP: 1000
+EPOCHS: 100
+LR: 1e-4
+LR_STEP: 10000
 LR_FACTOR: 0.1
 RESUME: null
-BATCH_SIZE_PER_GPU: 2
+BATCH_SIZE_PER_GPU: 4
 WORKERS: 4
 PIN_MEM: True
 
 LOG_DIR: logs
 LOG_CONFIG: logging.conf
 
-PRINT_FREQ: 10
-SAVE_STEP_INTER: 10
+PRINT_FREQ: 100
+SAVE_STEP_INTER: 10000
 OUTPUT_DIR: './outputs'
 
 
@@ -45,7 +46,7 @@ MODEL:
 
   HEAD:
     name: CTC
-    n_class: 8535
+    n_class: 8536 # len(alphabet)+1, [0,1,...8534,8535]
 
 LOSS:
   name: CTCLoss
