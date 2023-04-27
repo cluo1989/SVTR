@@ -2,7 +2,7 @@
 Author: Cristiano-3 chunanluo@126.com
 Date: 2023-04-17 10:47:24
 LastEditors: Cristiano-3 chunanluo@126.com
-LastEditTime: 2023-04-26 16:52:36
+LastEditTime: 2023-04-27 19:58:15
 FilePath: /SVTR/datasets/mydataset.py
 Description: 
 '''
@@ -22,7 +22,7 @@ class RecDataset(data.Dataset):
         self.max_label_len = 25
         self.split_mark = '    '
         self.old_image_dir = '/home/datasets/'
-        self.samples = self.load_labels(label_file, image_dir)[:100]
+        self.samples = self.load_labels(label_file, image_dir)#[:100]
 
     def debug_print(self, tip, content, debug=False):
         if debug:
