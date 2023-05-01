@@ -44,8 +44,8 @@ class RecMetric(object):
             
             for (pred, prob, target) in zip(preds, probs, labels):
                 # decode
-                pred = self.pred_decoder(pred.detach().numpy(), prob.detach().numpy())
-                target = self.label_decoder(target.detach().numpy())
+                pred = self.pred_decoder(pred.detach().cpu().numpy(), prob.detach().cpu().numpy())
+                target = self.label_decoder(target.detach().cpu().numpy())
                 # print(pred, target)
 
                 if self.ignore_space:
