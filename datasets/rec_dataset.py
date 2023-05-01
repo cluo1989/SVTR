@@ -53,15 +53,15 @@ class RecDataset(data.Dataset):
                     self.debug_print('@@@@:', label)
                     continue
 
-                if len(label) > self.max_label_len:
-                    self.debug_print('long label(>25):', label)
-                    continue
-
                 label = encode(label)
                 if label is None:
                     self.debug_print('encode failed:', label)
                     continue
 
+                if len(label) > self.max_label_len:
+                    self.debug_print('long label(>25):', label)
+                    continue
+                
                 image_name = image_name.replace(self.old_image_dir, '')
                 image_file = '/'.join([image_dir, image_name])
                 samples.append((image_file, label))
@@ -72,7 +72,7 @@ class RecDataset(data.Dataset):
 
     def __getitem__(self, index):
         image_file, label = self.samples[index]
-        image = Image.open(image_file)
+        image = Image.open(image_file).convert('L')
 
         # resize and normalize image
         image = np.asarray(image)
