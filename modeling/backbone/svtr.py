@@ -16,7 +16,7 @@ def drop_path(x, drop_prob=0., training=False):
     keep_prob = torch.tensor(1 - drop_prob)
     shape = (x.size()[0], ) + (1, ) * (x.ndim - 1)
     random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype)
-    random_tensor = torch.floor(random_tensor)  # binarize
+    random_tensor = torch.floor(random_tensor).to('cuda:0')  # binarize
     output = x.divide(keep_prob) * random_tensor
     return output
 
@@ -116,11 +116,11 @@ class PatchEmbed(nn.Module):
         
         # 
         conv_proj = self.proj(inputs)           # Nx768x8x25
-        print(f"shape a:{conv_proj.shape}")
+        # print(f"shape a:{conv_proj.shape}")
         conv_proj_flat = conv_proj.flatten(2)   # Nx768x200
-        print(f"shape b:{conv_proj_flat.shape}")
+        # print(f"shape b:{conv_proj_flat.shape}")
         out = conv_proj_flat.permute((0,2,1))   # Nx200x768
-        print(f"shape c:{out.shape}")
+        # print(f"shape c:{out.shape}")
         return out
         
 
@@ -164,7 +164,7 @@ class Attention(nn.Module):
             mask_paddle = mask[:, hk//2:H+hk//2, wk//2:W+wk//2].flatten(1)
             mask_inf = torch.full([H*W, H*W], fill_value=float('-inf'))
             mask = torch.where(mask_paddle<1, mask_paddle, mask_inf)
-            self.mask = mask[None, None, :]
+            self.mask = mask[None, None, :].to('cuda:0')
 
         self.mixer = mixer
 
@@ -179,6 +179,7 @@ class Attention(nn.Module):
         q, k, v = qkv[0] * self.scale, qkv[1], qkv[2]
 
         attn = (q.matmul(k.permute((0, 1, 3, 2))))
+        # print(attn.is_cuda, self.mask.is_cuda)
         if self.mixer == 'Local':
             attn += self.mask
         attn = functional.softmax(attn, dim=-1)

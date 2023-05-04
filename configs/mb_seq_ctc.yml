@@ -38,8 +38,7 @@ MODEL:
   in_channel: 1
 
   BACKBONE:
-    name: SVTRNet #MobileNetV1Enhance
-    image_size: [32, 320]
+    name: MobileNetV1Enhance
     scale: 0.5
 
   NECK:
