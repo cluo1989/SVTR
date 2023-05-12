@@ -19,7 +19,7 @@ class RecDataset(data.Dataset):
     def __init__(self, label_file, image_dir):
         super().__init__()
         self.image_shape = [32, 320, 1]
-        self.max_label_len = 25
+        self.max_label_len = 20 # 25
         self.split_mark = '    '
         self.old_image_dir = '/home/datasets/'
         self.samples = self.load_labels(label_file, image_dir)#[:100]
