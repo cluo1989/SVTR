@@ -1,0 +1,38 @@
+NAN debug技巧：
+=============
+# 1. 判断模型forward输出和loss是否NAN
+if torch.any(torch.isnan(output)):
+    print('output is NAN')
+
+if torch.any(torch.isnan(loss)):
+    print('loss is NAN')
+
+# 2. 设置检测异常模式，异常会自动中断并输出相关信息
+torch.autograd.set_detect_anomaly(True)
+with torch.autograd.detect_anomaly():
+    loss.backward()
+
+# 3. 判断、打印模型参数（名称、梯度、）
+isnan = False
+for name, param in model.named_parameters():
+    if torch.isnan(param.grad).any():
+        print(f'epoch:{epoch},step:{i}')
+        print(name)
+        isnan = True
+
+        # 设置打印出全部参数（普通打印会省略很多参数）
+        torch.set_printoptions(profile="full")
+        print(labels)
+        print(label_lengths)
+        break
+if isnan:
+    continue
+
+# 4. 梯度剪裁，针对梯度爆炸
+torch.nn.utils.clip_grad_norm(model.parameters(), 3, norm_type=2)
+
+
+# 5. CTCLoss 损失反向传播报错
+RuntimeError: Function 'CTCLossBackward0' returned nan values in its 0th output.
+CTCLoss 的 input lengths < label lengths 导致的，减小 label lengths 或 限制输入的最小length
+
