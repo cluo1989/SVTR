@@ -4,7 +4,8 @@ EPOCHS: 1000
 LR: 1.0e-4
 LR_STEP: 10000
 LR_FACTOR: 0.1
-RESUME: null #outputs/checkpoint_192_3071_0.0227_0.9687.pth #null
+# RESUME: outputs/checkpoint_13_1151_0.0456_0.9062.pth
+RESUME: null
 BATCH_SIZE_PER_GPU: 64
 WORKERS: 4
 PIN_MEM: True
@@ -41,9 +42,13 @@ MODEL:
     name: SVTRNet #MobileNetV1Enhance
     image_size: [32, 320]
     scale: 0.5
+    out_char_num: 40
+    out_channels: 96
+    prenorm: False
 
   NECK:
     name: RNN
+    encoder_type: reshape
 
   HEAD:
     name: CTC
