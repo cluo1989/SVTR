@@ -40,7 +40,8 @@ def main():
         h, w = img.shape[:2]
         h_ = 32
         w_ = int(w*(32./h))
-        img = resize_norm_img(img, [h_, w_, 1])
+        # img = resize_norm_img(img, [h_, w_, 1]) #ctc
+        img = resize_norm_img(img, [32, 320, 1])  #svtr
         img = np.expand_dims(img, axis=0)
 
         img = torch.from_numpy(img).float()
