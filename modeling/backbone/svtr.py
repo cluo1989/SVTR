@@ -1,7 +1,7 @@
 # coding: utf-8
 import torch
 import torch.nn as nn
-from torch.nn.init import trunc_normal_, zeros_, ones_
+from torch.nn.init import trunc_normal_, kaiming_normal_, zeros_, ones_
 from torch.nn import functional
 import numpy as np
 
@@ -16,7 +16,7 @@ def drop_path(x, drop_prob=0., training=False):
     keep_prob = torch.tensor(1 - drop_prob)
     shape = (x.size()[0], ) + (1, ) * (x.ndim - 1)
     random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype)
-    random_tensor = torch.floor(random_tensor).to('cuda:0')  # binarize
+    random_tensor = torch.floor(random_tensor).to(x.device)  # binarize
     output = x.divide(keep_prob) * random_tensor
     return output
 
@@ -43,6 +43,28 @@ class ConvBNLayer(nn.Module):
             bias=bias)
         self.bn = nn.BatchNorm2d(out_channel)
         self.act = act()
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        # weight initialization
+        if isinstance(m, nn.Conv2d):
+            kaiming_normal_(m.weight, mode='fan_out')
+            if m.bias is not None:
+                zeros_(m.bias)
+        elif isinstance(m, nn.BatchNorm2d):
+            ones_(m.weight)
+            zeros_(m.bias)
+        elif isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            if m.bias is not None:
+                zeros_(m.bias)
+        elif isinstance(m, nn.ConvTranspose2d):
+            kaiming_normal_(m.weight, mode='fan_out')
+            if m.bias is not None:
+                zeros_(m.bias)
+        elif isinstance(m, nn.LayerNorm):
+            ones_(m.weight)
+            zeros_(m.bias)
 
     def forward(self, inputs):
         out = self.conv2d(inputs)
@@ -164,7 +186,7 @@ class Attention(nn.Module):
             mask_paddle = mask[:, hk//2:H+hk//2, wk//2:W+wk//2].flatten(1)
             mask_inf = torch.full([H*W, H*W], fill_value=float('-inf'))
             mask = torch.where(mask_paddle<1, mask_paddle, mask_inf)
-            self.mask = mask[None, None, :].to('cuda:0')
+            self.mask = mask[None, None, :]
 
         self.mixer = mixer
 
@@ -181,6 +203,7 @@ class Attention(nn.Module):
         attn = (q.matmul(k.permute((0, 1, 3, 2))))
         # print(attn.is_cuda, self.mask.is_cuda)
         if self.mixer == 'Local':
+            self.mask = self.mask.to(x.device)
             attn += self.mask
         attn = functional.softmax(attn, dim=-1)
         attn = self.attn_drop(attn)
@@ -557,7 +580,7 @@ class SVTRNet(nn.Module):
             self.dropout = nn.Dropout(p=last_drop)
 
         if not prenorm:
-            self.norm = eval(norm_layer)(embed_dim[-1], epsilon=epsilon)
+            self.norm = eval(norm_layer)(embed_dim[-1], eps=epsilon)
 
         self.use_lenhead = use_lenhead
         if use_lenhead:
@@ -569,13 +592,25 @@ class SVTRNet(nn.Module):
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
-            if isinstance(m, nn.Linear) and m.bias is not None:
+        # weight initialization
+        if isinstance(m, nn.Conv2d):
+            kaiming_normal_(m.weight, mode='fan_out')
+            if m.bias is not None:
+                zeros_(m.bias)
+        elif isinstance(m, nn.BatchNorm2d):
+            ones_(m.weight)
+            zeros_(m.bias)
+        elif isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            if m.bias is not None:
+                zeros_(m.bias)
+        elif isinstance(m, nn.ConvTranspose2d):
+            kaiming_normal_(m.weight, mode='fan_out')
+            if m.bias is not None:
                 zeros_(m.bias)
         elif isinstance(m, nn.LayerNorm):
-            zeros_(m.bias)
             ones_(m.weight)
+            zeros_(m.bias)
 
     def forward_features(self, x):
         x = self.patch_embed(x)
@@ -636,13 +671,13 @@ if __name__ == "__main__":
     # print('--- res ---')
     # print(res)
     
-    a = torch.rand(1,3,48,100)
-    svtr = SVTRNet()
+    a = torch.rand(1,1,32,320)
+    svtr = SVTRNet(in_channel=1, image_size=[32, 320])
     out = svtr(a)
     print(svtr)
     print(20*'-')
     print(out.size())
     
     from torchsummary import summary
-    summary(svtr, input_size=(3, 48, 100), batch_size=1)
+    summary(svtr, input_size=(1, 32, 320), batch_size=1)
     
