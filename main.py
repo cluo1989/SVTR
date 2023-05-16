@@ -246,7 +246,10 @@ def main():
             )
 
     # data loading
-    trainset = RecDataset(config.DATASETS.train.label_file, config.DATASETS.train.image_dir)
+    trainset = RecDataset(config.DATASETS.train.real.label_file, 
+                          config.DATASETS.train.real.image_dir,
+                          config.DATASETS.train.simu.label_file,
+                          config.DATASETS.train.simu.image_dir, name='TRAIN')
     trainsampler = DistributedSampler(trainset)
     trainloader = DataLoader(
         dataset=trainset, 
@@ -256,7 +259,8 @@ def main():
         pin_memory=config.PIN_MEM
         )
 
-    valset = RecDataset(config.DATASETS.val.label_file, config.DATASETS.val.image_dir)
+    valset = RecDataset(config.DATASETS.val.label_file, 
+                        config.DATASETS.val.image_dir, name='VAL')
     valsampler = DistributedSampler(valset)
     valloader = DataLoader(
         dataset=valset,
