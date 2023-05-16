@@ -25,10 +25,14 @@ CUDNN:
 
 DATASETS:
   train:
-    label_file: '/home/cluo/workspace/projects/general_ocr/datasets/rec/train_real.txt'
-    image_dir: '/home/cluo/workspace/datasets/'
+    real:
+      label_file: '/home/cluo/workspace/projects/general_ocr/datasets/rec/train_real.txt'
+      image_dir: '/home/cluo/workspace/datasets/'
+    simu:
+      label_file: '/home/cluo/workspace/projects/general_ocr/datasets/rec/test_real.txt'
+      image_dir: '/home/cluo/workspace/datasets/'
   val:
-    label_file: '/home/cluo/workspace/projects/general_ocr/datasets/rec/test_real.txt'
+    label_file: '/home/cluo/workspace/projects/general_ocr/datasets/rec/val_real.txt'
     image_dir: '/home/cluo/workspace/datasets/'
   test:
     label_file: ''
