@@ -27,12 +27,12 @@ class RecDataset(data.Dataset):
         self.max_label_len = 20 # 25
         self.delimiter = '    '
         self.old_image_dir = '/home/datasets/'
-        self.real_samples = self.load_labels(real_label_file, real_image_dir)[:64]
+        self.real_samples = self.load_labels(real_label_file, real_image_dir)#[:64]
         # random.shuffle(self.real_samples)
         # print('shuffle real samples, init')
 
         if simu_label_file is not None and simu_image_dir is not None:
-            self.simu_samples = self.load_labels(simu_label_file, simu_image_dir)[:128]
+            self.simu_samples = self.load_labels(simu_label_file, simu_image_dir)#[:128]
             # random.shuffle(self.simu_samples)
             # print('shuffle simu samples, init')
             self.real_ratio = 0.5
@@ -66,7 +66,8 @@ class RecDataset(data.Dataset):
         random.shuffle(self.total_samples)
 
         print(f'{name} DATASET STATISTICS\n', 50*'-')
-        print(f'total_num:{self.total_num}, real_num:{self.real_num}, simu_num:{self.simu_num}\n')
+        print(f'original real: {len_real}, simu: {len_simu}, real_ratio: {self.real_ratio}')
+        print(f'total_num: {self.total_num}, real_num: {self.real_num}, simu_num: {self.simu_num}\n')
         #print('\n'.join([t[0] for t in self.total_samples]))
 
     def debug_print(self, tip, content, debug=False):
