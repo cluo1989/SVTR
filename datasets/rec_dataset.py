@@ -7,22 +7,67 @@ FilePath: /SVTR/datasets/mydataset.py
 Description: 
 '''
 import torch
-from torch import nn
 from torch.utils import data
 from PIL import Image
 import numpy as np
+import random
 from datasets.label_converter import encode
 from datasets.image_tool import resize_norm_img
 
 
 class RecDataset(data.Dataset):
-    def __init__(self, label_file, image_dir):
+    def __init__(self, 
+                 real_label_file, 
+                 real_image_dir, 
+                 simu_label_file=None, 
+                 simu_image_dir=None,
+                 name=''):
         super().__init__()
         self.image_shape = [32, 320, 1]
         self.max_label_len = 20 # 25
-        self.split_mark = '    '
+        self.delimiter = '    '
         self.old_image_dir = '/home/datasets/'
-        self.samples = self.load_labels(label_file, image_dir)#[:100]
+        self.real_samples = self.load_labels(real_label_file, real_image_dir)[:64]
+        # random.shuffle(self.real_samples)
+        # print('shuffle real samples, init')
+
+        if simu_label_file is not None and simu_image_dir is not None:
+            self.simu_samples = self.load_labels(simu_label_file, simu_image_dir)[:128]
+            # random.shuffle(self.simu_samples)
+            # print('shuffle simu samples, init')
+            self.real_ratio = 0.5
+            self.simu_ratio = 1 - self.real_ratio
+        else:
+            self.simu_samples = []
+            self.real_ratio = 1.0
+            self.simu_ratio = 0
+
+        # compute total according to ratio
+        len_real = len(self.real_samples)
+        len_simu = len(self.simu_samples)
+        
+        total_real = int(len_real / (self.real_ratio + 1e-6)) + 1 
+        total_simu = int(len_simu / (self.simu_ratio + 1e-6)) + 1
+
+        if total_real > total_simu:
+            self.real_num = len_real
+            self.simu_num = total_real - self.real_num
+            self.simu_samples = random.choices(self.simu_samples, k=self.simu_num)
+        else:
+            self.simu_num = len_simu
+            self.real_num = total_simu - self.simu_num
+            self.real_samples = random.choices(self.real_samples, k=self.real_num)
+
+        # total 
+        self.total_samples = self.simu_samples + self.real_samples
+        self.total_num = len(self.total_samples)
+
+        # init shuffle
+        random.shuffle(self.total_samples)
+
+        print(f'{name} DATASET STATISTICS\n', 50*'-')
+        print(f'total_num:{self.total_num}, real_num:{self.real_num}, simu_num:{self.simu_num}\n')
+        #print('\n'.join([t[0] for t in self.total_samples]))
 
     def debug_print(self, tip, content, debug=False):
         if debug:
@@ -33,11 +78,11 @@ class RecDataset(data.Dataset):
         with open(label_file, 'r') as fin:
             lines = fin.readlines()
             for line in lines:
-                if self.split_mark not in line:
+                if self.delimiter not in line:
                     self.debug_print('mark not found:', line)
                     continue
                 
-                tmp = line.strip().split(self.split_mark)
+                tmp = line.strip().split(self.delimiter)
                 if len(tmp) != 2:
                     self.debug_print('len(tmp)!=2:', line)
                     continue
@@ -68,10 +113,12 @@ class RecDataset(data.Dataset):
         return samples
         
     def __len__(self):
-        return len(self.samples)
+        # return len(self.samples)
+        return self.total_num
 
     def __getitem__(self, index):
-        image_file, label = self.samples[index]
+        # load sample
+        image_file, label = self.total_samples[index]
         image = Image.open(image_file).convert('L')
 
         # resize and normalize image
