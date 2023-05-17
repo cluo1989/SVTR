@@ -13,6 +13,7 @@ import numpy as np
 import random
 from datasets.label_converter import encode
 from datasets.image_tool import resize_norm_img
+from datasets.augmenter import ImageAugmenter
 
 
 class RecDataset(data.Dataset):
@@ -27,6 +28,7 @@ class RecDataset(data.Dataset):
         self.max_label_len = 20 # 25
         self.delimiter = '    '
         self.old_image_dir = '/home/datasets/'
+        self.augmenter = ImageAugmenter()
         self.real_samples = self.load_labels(real_label_file, real_image_dir)#[:64]
         # random.shuffle(self.real_samples)
         # print('shuffle real samples, init')
@@ -124,6 +126,11 @@ class RecDataset(data.Dataset):
 
         # resize and normalize image
         image = np.asarray(image)
+
+        # augment simu images
+        # if 'synthetic' in image_file and len(label)==10:
+        image = self.augmenter.image_augmentation(image)
+
         image = resize_norm_img(image, self.image_shape)
         image = torch.from_numpy(image).float()
         image = image.permute([2,0,1])
