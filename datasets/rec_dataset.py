@@ -8,11 +8,11 @@ Description:
 '''
 import torch
 from torch.utils import data
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 import random
 from datasets.label_converter import encode
-from datasets.image_tool import resize_norm_img
+from datasets.image_tool import resize_norm_img, random_pad
 from datasets.augmenter import ImageAugmenter
 
 
@@ -123,6 +123,7 @@ class RecDataset(data.Dataset):
         # load sample
         image_file, label = self.total_samples[index]
         image = Image.open(image_file).convert('L')
+        image = ImageOps.exif_transpose(image)
 
         # resize and normalize image
         image = np.asarray(image)
@@ -130,8 +131,12 @@ class RecDataset(data.Dataset):
         # augment simu images
         # if 'synthetic' in image_file and len(label)==10:
         image = self.augmenter.image_augmentation(image)
-
+        image = random_pad(image)
+        # import cv2
+        # cv2.imwrite('temp/'+image_file.split('/')[-1], image)
         image = resize_norm_img(image, self.image_shape)
+
+        # to tensor
         image = torch.from_numpy(image).float()
         image = image.permute([2,0,1])
         
